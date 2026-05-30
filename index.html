@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>MCSR LB</title>
+    </head>
+    <style>
+        @font-face {
+            font-family: "Minecraft";
+            src: url(./Minecraft.ttf);
+        }
+        body {
+            background-color: rgb(102, 101, 101);
+            font-family: 'Minecraft';
+        }
+        #lbslot1 {
+            color: rgb(179, 152, 2);
+            border-color: rgb(179, 152, 2);
+            background-color: gold;
+            height: 300px;
+        }
+        #lbslot2 {
+            color: rgb(146, 146, 146);
+            border-color: rgb(146, 146, 146);
+            background-color: silver;
+            height: 200px;
+        }
+        #lbslot3 {
+            color: rgb(153, 100, 2);
+            border-color: rgb(153, 100, 2);
+            background-color: rgb(189, 124, 2);
+            height: 100px;
+        }
+        .lbslot {
+            border: 3px solid rgb(165, 164, 164);
+            color: rgb(165, 164, 164);
+            border-radius: 5px;
+            width: 200px;
+            margin: 10px;
+            padding: 5px;
+            display: flex;
+            flex-direction: row;
+        }
+        #lb {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #lbtop {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-end;
+        }
+        .lbtopslot {
+            border: 3px solid rgb(165, 164, 164);
+            color: rgb(165, 164, 164);
+            width: 200px;
+            margin: 10px;
+            padding: 5px;
+            position: relative;
+        }
+        .lbname {
+            text-align: center;
+            font-size: 30px;
+            margin: 10px;
+        }
+        .lbspt {
+            position: absolute;
+            bottom: 5px;
+            left: 5px;
+            margin: 0;
+            font-size: 12px;
+        }
+        .lbinfo {
+            text-align: center;
+        }
+        .lbelrnk {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            margin: 0;
+            font-size: 12px;
+        }
+    </style>
+    <body>
+        <div id="lb">
+            <div id="lbtop">
+                <div class='lbtopslot' id="lbslot2"></div>
+                <div class='lbtopslot' id="lbslot1"></div>
+                <div class='lbtopslot' id="lbslot3"></div>
+            </div>
+        </div>
+    </body>
+    <script>
+        async function loadlb() {
+            const raw = await fetch('https://api.mcsrranked.com/leaderboard')
+            // const raw = await fetch('./leaderboard.json')
+            const json = await raw.json()
+            const code = json['status']
+            if (code != 'success') {
+                console.log('error')
+                return
+            }
+            const data = await json['data']
+            const players = await data['users']
+            const lbdiv = document.getElementById('lb')
+            const lbtop = document.getElementById('lbtop')
+            players.forEach(player => {       
+                if (player['eloRank'] < 4) {
+                    buildinfo(player)
+                    return
+                }
+                const lbslot = document.createElement('div')
+                lbslot.className = 'lbslot'
+                lbslot.style.margin = '2px'
+
+                const lbname = document.createElement('p')
+                lbname.style.margin = 0
+                lbname.style.whiteSpace = 'nowrap'
+                lbname.style.overflow = 'hidden'
+                lbname.style.textOverflow = 'ellipsis'
+                lbname.style.maxWidth = '140px'
+                lbname.innerText = player['eloRank'] + '. ' +   player['nickname']
+
+                const lbelo = document.createElement('p')
+                lbelo.style.margin = 0
+                lbelo.style.marginLeft = 'auto' 
+                lbelo.innerText = player['eloRate']
+
+                lbslot.appendChild(lbname)
+                lbslot.appendChild(lbelo)
+                lbdiv.appendChild(lbslot)
+            });
+        }
+
+        function elotorank(elo) {
+            if (elo >= 2000) {
+                return 'Netherite'
+            } else if (elo >= 1800) {
+                return 'Diamond III'
+            } else if (elo >= 1650) {
+                return 'Diamond II'
+            } else if (elo >= 1500) {
+                return 'Diamond I'
+            } else if (elo >= 1400) {
+                return 'Emerald III'
+            } else if (elo >= 1300) {
+                return 'Emerald II'
+            } else if (elo >= 1200) {
+                return 'Emerald I'
+            } else if (elo >= 1100) {
+                return 'Gold III'
+            } else if (elo >= 1000) {
+                return 'Gold II'
+            } else if (elo >= 900) {
+                return 'Gold I'
+            } else if (elo >= 800) {
+                return 'Iron III'
+            } else if (elo >= 700) {
+                return 'Iron II'
+            } else if (elo >= 600) {
+                return 'Iron I'
+            } else if (elo >= 500) {
+                return 'Coal III'
+            } else if (elo >= 400) {
+                return 'Coal II'
+            } else if (elo >= 0) {
+                return 'Coal I'
+            } else {
+                return 'Unranked'
+            }
+
+        }
+
+        function formatTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000)
+
+            const minutes = Math.floor(totalSeconds / 60)
+            const seconds = totalSeconds % 60
+            const milliseconds = ms % 1000
+
+            const mm = String(minutes).padStart(2, '0')
+            const ss = String(seconds).padStart(2, '0')
+            const mmm = String(milliseconds).padStart(3, '0')
+
+            return `${mm}:${ss}.${mmm}`
+        }
+        
+        async function getPlayerAverage(name, uuid) {
+            let match_times = []
+            let before = null
+
+            while (true) {
+                let url = `https://api.mcsrranked.com/users/${encodeURIComponent(name)}/matches/?count=100&type=2&sort=oldest`
+                if (before !== null) {
+                    url += `&before=${before}`
+                }
+
+                const raw = await fetch(url)
+                const json = await raw.json()
+
+                if (json['status'] !== 'success') {
+                    console.log('error')
+                    return
+                }
+
+                const data = json['data']
+
+                if (data.length === 0) {
+                    break
+                }
+
+                for (const match of data) {
+                    if (match['decayed'] || match['forfeited']) {
+                        continue
+                    }
+
+                    if (match['result'] && match['result']['uuid'] === uuid) {
+                        match_times.push(match['result']['time'])
+                    }
+
+                    before = match['id']
+                }
+
+                if (data.length < 100) {
+                    break
+                }
+            }
+
+            if (match_times.length === 0) {
+                return '00:00.000'
+            }
+
+            let sum = 0
+            for (const time of match_times) {
+                sum += time
+            }
+
+            const rawav = sum / match_times.length
+            const rndav = Math.floor(rawav)
+            return formatTime(rndav)
+        }
+
+        async function getPlayerData(name) {
+            const raw = await fetch('https://api.mcsrranked.com/users/' + name)
+            // const raw = await fetch('./user-data.json')
+            const json = await raw.json()
+            const code = json['status']
+            if (code != 'success') {
+                console.log('error')
+                return
+            }
+            const data = await json['data']
+            return data
+        }
+
+        async function buildinfo(player) {
+            const name = player['nickname']
+            const lbpos = player['eloRank']
+            const lbslot = document.getElementById('lbslot' + player['eloRank'])
+            const bust = document.createElement('img')
+            bust.src = 'https://mc-api.io/render/bust/' + name + '/java?size=200'
+            if (lbpos == 3) { bust.style.transform = 'scale(-1, 1)'}
+            lbslot.appendChild(bust)
+
+            const elo = player['eloRate']
+            const eloRank = elotorank(elo)
+            const phase = player['seasonResult']['phasePoint']
+            const suppt = player['roleType']
+            const uuid = player['uuid']
+            const data = await getPlayerData(name)
+            const peakelo = await data['seasonResult']['highest']
+
+            const lbinfo = document.createElement('div')
+            lbinfo.className = 'lbinfo'
+
+            const lbname = document.createElement('p')
+            lbname.innerText = name
+            lbname.className = 'lbname'
+            lbinfo.appendChild(lbname)
+
+            if (suppt != 0) {
+                const lbspt = document.createElement('p')
+                lbspt.innerText = 'SP' + suppt
+                lbspt.className = 'lbspt'
+                lbinfo.appendChild(lbspt)
+            }  
+
+            const lbelrnk = document.createElement('p')
+            lbelrnk.innerText = eloRank
+            lbelrnk.className = 'lbelrnk'
+            lbinfo.appendChild(lbelrnk)
+
+            const lbelo = document.createElement('p')
+            lbelo.innerText = 'Elo: ' + elo + ' - (' + peakelo + ' peak)'
+            lbinfo.appendChild(lbelo)
+
+            if (lbpos == 3) {
+                lbslot.appendChild(lbinfo)
+                return
+            }
+            const avg = await getPlayerAverage(name, uuid)
+            const lbavg = document.createElement('p')
+            lbavg.innerText = avg
+            lbinfo.appendChild(lbavg)
+            lbslot.appendChild(lbinfo)
+
+        }
+
+        loadlb()
+    </script>
+</html>
