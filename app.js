@@ -24,6 +24,10 @@ app.get('/api/player/:username', async (req, res) => {
     }
 })
 
+app.get('/player/:username', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/player.html'))
+})
+
 app.listen(3000, () => {
     console.log('http://localhost:3000')
 })

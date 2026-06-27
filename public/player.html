@@ -55,6 +55,12 @@
                 max-height: 400px;
             }
             #socials {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            #dc, #tw, #yt {
+                padding: 5px;
             }
         </style>
     </head>
@@ -87,17 +93,41 @@
     function copytoclip(x) {
         navigator.clipboard.writeText(x);
     }
+    function dccopy(dc) {
+        copytoclip(dc)
+        const img = document.getElementById('dc')
+        img.src = '/copy.png'
+        setTimeout(() => {img.src = '/discord.png'}, 1000)
+    }
 
     function buildSocials(dc, yt, tw) {
         const socials = document.getElementById('socials')
         if (dc) {
             const dcicon = document.createElement('img')
             dcicon.id = 'dc'
-            dcicon.src = 'https://support.discord.com/hc/user_images/bbW4u80g7yIVxsphv9diNw.png'
+            dcicon.src = '/discord.png'
             dcicon.height = 30
             dcicon.width = 30
-            dcicon.onclick = 'copytoclip('+dc+')'
+            dcicon.onclick = () => dccopy(dc)
             socials.appendChild(dcicon)
+        }
+        if (tw) {
+            const twicon = document.createElement('img')
+            twicon.id = 'tw'
+            twicon.src = '/twitch.png'
+            twicon.height = 30
+            twicon.width = 30
+            twicon.onclick = () => window.location.href = 'https://twitch.tv/' + tw
+            socials.appendChild(twicon)
+        }
+        if (yt) {
+            const yticon = document.createElement('img')
+            yticon.id = 'yt'
+            yticon.src = '/yt.png'
+            // yticon.height = 30
+            yticon.width = 30
+            yticon.onclick = () => window.location.href = 'https://youtube.com/' + yt
+            socials.appendChild(yticon)
         }
     }
 
@@ -108,8 +138,22 @@
         return user || null
     }
 
-    function loadUser(user) {
-        const rankedraw = fetch('/api/player/' + user)
+    async function loadUser(user) {
+        const rankedraw = await fetch('/api/player/' + user)
+        const rankedjs = await rankedraw.json()
+        const rankeddata = rankedjs['data']
+        if (rankeddata['error'] == 'User is not exists.') {
+            const dl = document.getElementById('dl')
+            dl.innerHTML = '<p>User does not exist</p>'
+            return
+        }
+
+        const discord = rankeddata.connections?.discord?.name || ''
+        const yt = rankeddata.connections?.youtube?.name || ''
+        const tw = rankeddata.connections?.twitch?.name || ''
+
+        buildSocials(discord, yt, tw)
+        console.log(rankeddata)
 
         const playerModel = document.getElementById('playerModel')
         playerModel.src = 'https://nmsr.nickac.dev/fullbody/' + user
