@@ -17,18 +17,33 @@
             border-color: rgb(179, 152, 2);
             background-color: gold;
             height: 300px;
+            &:hover {
+                background-color: rgb(179, 152, 2);
+                color: gold;
+                border-color: gold;
+            }
         }
         #lbslot2 {
             color: rgb(146, 146, 146);
             border-color: rgb(146, 146, 146);
             background-color: silver;
             height: 200px;
+            &:hover {
+                background-color: rgb(146, 146, 146);
+                color: silver;
+                border-color: silver;
+            }
         }
         #lbslot3 {
             color: rgb(153, 100, 2);
             border-color: rgb(153, 100, 2);
             background-color: rgb(189, 124, 2);
             height: 100px;
+            &:hover {
+                background-color: rgb(153, 100, 2);
+                color: rgb(189, 124, 2);
+                border-color: rgb(189, 124, 2);
+            }
         }
         .lbslot {
             border: 3px solid rgb(165, 164, 164);
@@ -37,10 +52,13 @@
             width: 200px;
             margin: 10px;
             padding: 5px;
-            display: flex;
-            flex-direction: row;
+            &:hover {
+                background-color: rgb(165, 164, 164);
+                color: rgb(102, 101, 101);
+            }
         }
         #lb {
+            transform: translate(0, 200px);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -57,6 +75,21 @@
             margin: 10px;
             padding: 5px;
             position: relative;
+            overflow: visible;
+        }
+        .mirror{
+            transform: scale(-1, 1) translateX(50%) !important;
+        }
+        .lbtopimg   {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 100%;
+            margin-bottom: 2px;
+            width: 160px;
+            height: auto;
+            z-index: 2;
+            image-rendering: pixelated;
         }
         .lbname {
             text-align: center;
@@ -79,6 +112,17 @@
             right: 5px;
             margin: 0;
             font-size: 12px;
+        }
+        .lb-extra {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: max-height 250ms ease, opacity 200ms ease;
+        }
+
+        .lb-extra.open {
+            max-height: 120px;
+            opacity: 1;
         }
     </style>
     <body>
@@ -113,6 +157,10 @@
                 lbslot.className = 'lbslot'
                 lbslot.style.margin = '2px'
 
+                const lbinfo = document.createElement('div')
+                lbinfo.style.display = 'flex'
+                lbinfo.style.flexDirection = 'row'
+
                 const lbname = document.createElement('p')
                 lbname.style.margin = 0
                 lbname.style.whiteSpace = 'nowrap'
@@ -126,10 +174,49 @@
                 lbelo.style.marginLeft = 'auto' 
                 lbelo.innerText = player['eloRate']
 
-                lbslot.appendChild(lbname)
-                lbslot.appendChild(lbelo)
+                lbinfo.appendChild(lbname)
+                lbinfo.appendChild(lbelo)
+
+                lbslot.appendChild(lbinfo)
+
+                lbslot.addEventListener('mouseenter', () => {
+                    expandInfo(lbslot, player)
+                })
+
                 lbdiv.appendChild(lbslot)
             });
+        }
+
+        function expandInfo(lbslot, player) {
+            let info = lbslot.querySelector('.lb-extra');
+
+            if (!info) {
+                info = document.createElement('div');
+                info.className = 'lb-extra';
+
+                const eloRank = elotorank(player['eloRate']);
+                const phase = player['seasonResult']['phasePoint'];
+                const suppt = player['roleType'];
+
+                info.innerText =
+                    `Elo Rank: ${eloRank}\nPhase: ${phase}\nSupport Type: ${suppt}`;
+
+                lbslot.appendChild(info);
+                info.offsetHeight; // Trigger reflow to enable transition
+
+                requestAnimationFrame(() => {
+                    info.classList.add('open');
+                });
+            }
+
+            const remove = () => {
+                info.classList.remove('open');
+                info.addEventListener('transitionend', () => {
+                    if (info.parentElement) info.remove();
+                }, { once: true });
+            };
+
+            lbslot.addEventListener('mouseleave', remove, { once: true });
         }
 
         function elotorank(elo) {
@@ -259,7 +346,8 @@
             const lbslot = document.getElementById('lbslot' + player['eloRank'])
             const bust = document.createElement('img')
             bust.src = 'https://mc-api.io/render/bust/' + name + '/java?size=200'
-            if (lbpos == 3) { bust.style.transform = 'scale(-1, 1)'}
+            bust.className = 'lbtopimg'
+            if (lbpos == 3) { bust.className += ' mirror' }
             lbslot.appendChild(bust)
 
             const elo = player['eloRate']
@@ -300,7 +388,7 @@
             }
             const avg = await getPlayerAverage(name, uuid)
             const lbavg = document.createElement('p')
-            lbavg.innerText = avg
+            lbavg.innerText = 'Avg: ' + avg
             lbinfo.appendChild(lbavg)
             lbslot.appendChild(lbinfo)
 

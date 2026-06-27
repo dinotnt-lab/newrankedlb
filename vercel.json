@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/player/:username",
+      "destination": "/player.html?u=:username"
+    }
+  ]
+}
