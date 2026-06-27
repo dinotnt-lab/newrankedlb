@@ -102,10 +102,10 @@
     }
 
     function getUserSearched() {
-        const params = new URLSearchParams(document.location.search)
-        const u = params.get('u')
-        document.title = (u ? u : '') + ' - MCSR Ranked'
-        return u
+        const path = window.location.pathname.split('/')
+        const user = path[path.length - 1]
+        document.title = (user || '') + ' - MCSR Ranked'
+        return user || null
     }
 
     function loadUser(user) {
@@ -125,14 +125,11 @@
         const value = search.value.trim()
         if (!value) {
             const search = document.getElementById('search')
-            search.value = new URLSearchParams(document.location.search).get('u')
+            search.value = getUserSearched()
             return
         }
-
-        const url = new URL(window.location.href)
-        url.searchParams.set('u', value)
-
-        window.location.href = url.toString()
+        
+        window.location.href = '/player/' + value
     })
 
     const user = getUserSearched()
