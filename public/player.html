@@ -109,6 +109,8 @@
     }
 
     function loadUser(user) {
+        const rankedraw = fetch('/api/player/' + user)
+
         const playerModel = document.getElementById('playerModel')
         playerModel.src = 'https://nmsr.nickac.dev/fullbody/' + user
 
