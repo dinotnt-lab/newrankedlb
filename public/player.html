@@ -44,6 +44,8 @@
                 justify-content: center;
                 background-color: rgb(12, 8, 41);
                 margin: 10px;
+                border: 1px solid rgb(1, 1, 76);
+                border-radius: 5px;
             }
             
             #dl, #dm {
@@ -73,10 +75,7 @@
         </div>
 
         <div id="data">
-            <div id="dl">
-                <p>pb:6767</p>
-                <p>pb:6767</p>
-            </div>
+            <div id="dl"></div>
 
             <div id="dm">
                 <img id="playerModel" src=""/>
@@ -117,7 +116,7 @@
             twicon.src = '/twitch.png'
             twicon.height = 30
             twicon.width = 30
-            twicon.onclick = () => window.location.href = 'https://twitch.tv/' + tw
+            twicon.onclick = () => window.open('https://twitch.tv/' + tw, '_blank');
             socials.appendChild(twicon)
         }
         if (yt) {
@@ -126,7 +125,7 @@
             yticon.src = '/yt.png'
             // yticon.height = 30
             yticon.width = 30
-            yticon.onclick = () => window.location.href = 'https://youtube.com/' + yt
+            yticon.onclick = () => window.open('https://youtube.com/channel/' + yt, '_blank');
             socials.appendChild(yticon)
         }
     }
@@ -138,7 +137,58 @@
         return user || null
     }
 
+    async function loadUserData(data, season = true, casual = false) {
+        const stats = season ? data.statistics.season : data.statistics.total;
+
+        var pb = casual ? stats.bestTime.casual : stats.bestTime.ranked;
+        var elo = data.eloRate;
+        var lbpos = data.eloRank;
+        var lastOnline = data.timestamp.lastOnline;
+        var lastRanked = data.timestamp.lastRanked;
+        var nextDecay = data.timestamp.nextDecay;
+        var playtime = casual ? stats.playtime.casual : stats.playtime.ranked;
+        var ffs = casual ? stats.forfeits.casual : stats.forfeits.ranked;
+        var hwinstr = casual ? stats.highestWinStreak.casual : stats.highestWinStreak.ranked;
+        var cwinstr = casual ? stats.currentWinStreak.casual : stats.currentWinStreak.ranked;
+        var matchN = casual ? stats.playedMatches.casual : stats.playedMatches.ranked;
+        var compl = casual ? stats.completions.casual : stats.completions.ranked;
+        var winsN = casual ? stats.wins.casual : stats.wins.ranked;
+        var lossN = casual ? stats.loses.casual : stats.loses.ranked;
+        var helo = data.seasonResult.highest
+        var lelo = data.seasonResult.lowest
+        var phase = data.seasonResult.last.phasePoint
+
+        // const ls = {pb, elo, lbpos, lastOnline, lastRanked, nextDecay, playtime, ffs, hwinstr, cwinstr, matchN, compl, winsN, lossN, helo, lelo, phase}
+        const left = document.getElementById('dl')
+        const cont = document.createElement('div')
+        // Object.entries(ls).forEach(([name, value]) => {
+        //     const p = document.createElement('p')
+        //     p.innerText = name + ': ' + value
+        //     cont.appendChild(p)
+        // })
+        pb = formatTime(pb)
+        cont.appendChild(newP('PB: ' + pb))
+        cont.appendChild(newP('Elo: ' + elo + ' (' + elotorank(elo) + ')'))
+        cont.appendChild(newP('LB postion: ' + lbpos))
+        cont.appendChild(newP('Last Online: ' + lastOnline))
+        cont.appendChild(newP('Last Queue: ' + lastRanked))
+        cont.appendChild(newP('Next Decay: ' + nextDecay))
+        cont.appendChild(newP('Playtime: ' + playtime))
+        cont.appendChild(newP('FF%: ' + Math.round((ffs/matchN)*1000)/10))
+        left.appendChild(cont)
+    }
+
+    function newP(text, id = null) {
+        const p = document.createElement('p')
+        p.innerText = text
+        p.id = id
+        return p
+    }
+
     async function loadUser(user) {
+        const search = document.getElementById('search')
+        search.value = user || ''
+
         const rankedraw = await fetch('/api/player/' + user)
         const rankedjs = await rankedraw.json()
         const rankeddata = rankedjs['data']
@@ -149,17 +199,121 @@
         }
 
         const discord = rankeddata.connections?.discord?.name || ''
-        const yt = rankeddata.connections?.youtube?.name || ''
+        const yt = rankeddata.connections?.youtube?.id || ''
         const tw = rankeddata.connections?.twitch?.name || ''
 
         buildSocials(discord, yt, tw)
-        console.log(rankeddata)
 
         const playerModel = document.getElementById('playerModel')
         playerModel.src = 'https://nmsr.nickac.dev/fullbody/' + user
+        loadUserData(rankeddata)
+    }
 
-        const search = document.getElementById('search')
-        search.value = user || ''
+    function elotorank(elo) {
+        if (elo >= 2000) {
+            return 'Netherite'
+        } else if (elo >= 1800) {
+            return 'Diamond III'
+        } else if (elo >= 1650) {
+            return 'Diamond II'
+        } else if (elo >= 1500) {
+            return 'Diamond I'
+        } else if (elo >= 1400) {
+            return 'Emerald III'
+        } else if (elo >= 1300) {
+            return 'Emerald II'
+        } else if (elo >= 1200) {
+            return 'Emerald I'
+        } else if (elo >= 1100) {
+            return 'Gold III'
+        } else if (elo >= 1000) {
+            return 'Gold II'
+        } else if (elo >= 900) {
+            return 'Gold I'
+        } else if (elo >= 800) {
+            return 'Iron III'
+        } else if (elo >= 700) {
+            return 'Iron II'
+        } else if (elo >= 600) {
+            return 'Iron I'
+        } else if (elo >= 500) {
+            return 'Coal III'
+        } else if (elo >= 400) {
+            return 'Coal II'
+        } else if (elo >= 0) {
+            return 'Coal I'
+        } else {
+            return 'Unranked'
+        }
+    }
+
+    function formatTime(ms) {
+        const totalSeconds = Math.floor(ms / 1000)
+
+        const minutes = Math.floor(totalSeconds / 60)
+        const seconds = totalSeconds % 60
+        const milliseconds = ms % 1000
+
+        const mm = String(minutes).padStart(2, '0')
+        const ss = String(seconds).padStart(2, '0')
+        const mmm = String(milliseconds).padStart(3, '0')
+
+        return `${mm}:${ss}.${mmm}`
+    }
+
+    async function getPlayerAverage(name, uuid) {
+        let match_times = []
+        let before = null
+
+        while (true) {
+            let url = `https://api.mcsrranked.com/users/${encodeURIComponent(name)}/matches/?count=100&type=2&sort=oldest`
+            if (before !== null) {
+                url += `&before=${before}`
+            }
+
+            const raw = await fetch(url)
+            const json = await raw.json()
+
+            if (json['status'] !== 'success') {
+                console.log('error')
+                return
+            }
+
+            const data = json['data']
+
+            if (data.length === 0) {
+                break
+            }
+
+            for (const match of data) {
+                if (match['decayed'] || match['forfeited']) {
+                    continue
+                }
+
+                if (match['result'] && match['result']['uuid'] === uuid) {
+                    match_times.push(match['result']['time'])
+                }
+
+                before = match['id']
+            }
+
+            if (data.length < 100) {
+                break
+            }
+        }
+
+        if (match_times.length === 0) {
+            return '00:00.000'
+        }
+
+        let sum = 0
+        for (const time of match_times) {
+            sum += time
+        }
+
+        const rawav = sum / match_times.length
+        const rndav = Math.floor(rawav)
+        return formatTime(rndav)
     }
 
     const form = document.getElementById('searchform')
