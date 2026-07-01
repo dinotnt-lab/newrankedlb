@@ -52,6 +52,11 @@
                 flex-direction: column;
             }
 
+            #dl {
+                font-weight: 600;
+                position: relative;
+            }
+
             #playerModel {
                 max-width: 100%;
                 max-height: 400px;
@@ -64,6 +69,38 @@
             #dc, #tw, #yt {
                 padding: 5px;
             }
+            .peakdiv {
+                display: flex;
+                align-items: center;
+                border-radius: 5px;
+                height: 18px;
+                background-image: linear-gradient(to right, rgb(255, 0, 0), rgb(255, 200, 0));
+                padding: 5px;
+                width: fit-content;
+                margin-left: 5px;
+            }
+            .elodiv {
+                display: flex;
+                align-items: center;
+            }
+            #matchPuller {
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background-color: rgb(48, 48, 48);
+                text-align: center;
+                border-top: 1px solid rgb(1, 1, 76);
+                border-top-left-radius: 5px;
+                border-top-right-radius: 5px;
+                cursor: grab;
+                z-index: 1;
+                top: 92%;
+            }
+            @keyframes grabAnimation {
+                0% { top: 90%; }
+                100% { top: 10px; }
+            }
         </style>
     </head>
 
@@ -75,7 +112,15 @@
         </div>
 
         <div id="data">
-            <div id="dl"></div>
+            <div id="dl">
+                <div id="matchPuller" onclick="toggleMatches()">
+                    <div id="grabme">
+                        <p style="margin: 0; transform: translateY(10px);">Matches</p>
+                        <p style="margin: 0;" class="grabbar">__________</p>
+                        <p style='margin: 0; margin-bottom: 10px; transform: translateY(-3px);' class="grabbar">________</p>
+                    </div>
+                </div>
+            </div>
 
             <div id="dm">
                 <img id="playerModel" src=""/>
@@ -92,6 +137,27 @@
     function copytoclip(x) {
         navigator.clipboard.writeText(x);
     }
+    var matchesOpen = false
+    function toggleMatches() {
+        if (matchesOpen) {
+            const matchPuller = document.getElementById('matchPuller')
+            matchPuller.style.animation = 'grabAnimation 0.5s reverse'
+            setTimeout(() => {
+                matchPuller.style.animation = ''
+                matchPuller.style.top = '92%'
+            }, 495)
+        } else {
+            const matchPuller = document.getElementById('matchPuller')
+            matchPuller.style.animation = 'grabAnimation 0.5s'
+            setTimeout(() => {
+                matchPuller.style.animation = ''
+                matchPuller.style.top = '10px'
+            }, 495)
+        }
+        matchesOpen = !matchesOpen
+
+    }
+
     function dccopy(dc) {
         copytoclip(dc)
         const img = document.getElementById('dc')
@@ -141,6 +207,7 @@
         const stats = season ? data.statistics.season : data.statistics.total;
 
         var pb = casual ? stats.bestTime.casual : stats.bestTime.ranked;
+        var compT = casual ? stats.completionTime.casual : stats.completionTime.ranked;
         var elo = data.eloRate;
         var lbpos = data.eloRank;
         var lastOnline = data.timestamp.lastOnline;
@@ -152,29 +219,52 @@
         var cwinstr = casual ? stats.currentWinStreak.casual : stats.currentWinStreak.ranked;
         var matchN = casual ? stats.playedMatches.casual : stats.playedMatches.ranked;
         var compl = casual ? stats.completions.casual : stats.completions.ranked;
+        var avg = compT / compl
         var winsN = casual ? stats.wins.casual : stats.wins.ranked;
         var lossN = casual ? stats.loses.casual : stats.loses.ranked;
         var helo = data.seasonResult.highest
         var lelo = data.seasonResult.lowest
         var phase = data.seasonResult.last.phasePoint
 
-        // const ls = {pb, elo, lbpos, lastOnline, lastRanked, nextDecay, playtime, ffs, hwinstr, cwinstr, matchN, compl, winsN, lossN, helo, lelo, phase}
         const left = document.getElementById('dl')
         const cont = document.createElement('div')
-        // Object.entries(ls).forEach(([name, value]) => {
-        //     const p = document.createElement('p')
-        //     p.innerText = name + ': ' + value
-        //     cont.appendChild(p)
-        // })
+
+        
+        const ed = document.createElement('div')
+        ed.className = 'elodiv'
+        ed.appendChild(newP(elotorank(elo) + ' - ' + elo + ' ( #' + lbpos + ' )'))
+        if (helo == elo) {
+            const pd = document.createElement('div')
+            pd.className = 'peakdiv'
+            const txt = newP('PEAK')
+            txt.style.margin = 0
+            pd.appendChild(txt)
+            const img = document.createElement('img')
+            img.src = '/fire3D.webp'
+            img.height = 30
+            img.style.transform = 'translateY(-1px)'
+            img.style.marginLeft = '5px'
+            pd.appendChild(img)
+            ed.appendChild(pd)
+        }
+        cont.appendChild(ed)
+
         pb = formatTime(pb)
         cont.appendChild(newP('PB: ' + pb))
-        cont.appendChild(newP('Elo: ' + elo + ' (' + elotorank(elo) + ')'))
-        cont.appendChild(newP('LB postion: ' + lbpos))
-        cont.appendChild(newP('Last Online: ' + lastOnline))
-        cont.appendChild(newP('Last Queue: ' + lastRanked))
-        cont.appendChild(newP('Next Decay: ' + nextDecay))
-        cont.appendChild(newP('Playtime: ' + playtime))
-        cont.appendChild(newP('FF%: ' + Math.round((ffs/matchN)*1000)/10))
+        cont.appendChild(newP('Average: ' + formatTime(Math.round(avg))))
+        var d = new Date(0)
+        d.setUTCSeconds(lastOnline)
+        cont.appendChild(newP('Last Online: ' + d.toLocaleString()))
+        d = new Date(0)
+        d.setUTCSeconds(lastRanked)
+        cont.appendChild(newP('Last Queue: ' + d.toLocaleString()))
+        if (nextDecay) {
+            d = new Date(0)
+            d.setUTCSeconds(nextDecay)
+            cont.appendChild(newP('Next Decay: ' + d.toLocaleString()))
+        }
+        cont.appendChild(newP('Playtime: ' + Math.round(playtime/1000/60/60) + ':' + Math.round((playtime/1000/60)%60) + ':' + Math.round((playtime/1000)%60)))
+        cont.appendChild(newP('FF: ' + Math.round((ffs/matchN)*1000)/10 + '%'))
         left.appendChild(cont)
     }
 
