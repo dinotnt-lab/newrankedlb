@@ -28,6 +28,36 @@ app.get('/player/:username', (req, res) => {
     res.sendFile(path.join(__dirname, 'public/player.html'))
 })
 
+app.get('/api/matches/:username', async (req, res) => {
+    const username = req.params.username
+
+    try {
+        let matches = []
+        let lowest = 2147483646
+
+        while (true) {
+            const response = await fetch(
+                `https://api.mcsrranked.com/users/${encodeURIComponent(username)}/matches?count=100${lowest ? `&before=${lowest}` : ''}`
+            )
+            const x = await response.json()
+            const data = Array.isArray(x.data) ? x.data : []
+            
+            data.forEach(match => {
+                if (match['id'] < lowest) { lowest = match['id']}
+            });
+
+            matches.push(...data)
+            if (data.length < 100) {
+                break
+            }
+
+        }
+        res.json(matches)
+    } catch (e) {
+        res.status(500).json({ error: 'failed' })
+    }
+})
+
 app.listen(3000, () => {
     console.log('http://localhost:3000')
 })

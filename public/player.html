@@ -97,6 +97,10 @@
                 z-index: 1;
                 top: 92%;
             }
+            #elograph {
+                width: 100%;
+                height: 100%;
+            }
             @keyframes grabAnimation {
                 0% { top: 90%; }
                 100% { top: 10px; }
@@ -128,7 +132,8 @@
             </div>
 
             <div id="dr">
-                <p>elo ^^^^</p>
+                <div id="elograph"></div>
+                <!-- <button id="showall">Show All</button> -->
             </div>
         </div>
     </body>
@@ -145,14 +150,14 @@
             setTimeout(() => {
                 matchPuller.style.animation = ''
                 matchPuller.style.top = '92%'
-            }, 495)
+            }, 490)
         } else {
             const matchPuller = document.getElementById('matchPuller')
             matchPuller.style.animation = 'grabAnimation 0.5s'
             setTimeout(() => {
                 matchPuller.style.animation = ''
                 matchPuller.style.top = '10px'
-            }, 495)
+            }, 490)
         }
         matchesOpen = !matchesOpen
 
@@ -233,7 +238,7 @@
         const ed = document.createElement('div')
         ed.className = 'elodiv'
         ed.appendChild(newP(elotorank(elo) + ' - ' + elo + ' ( #' + lbpos + ' )'))
-        if (helo == elo) {
+        if (helo == elo && elo != null) {
             const pd = document.createElement('div')
             pd.className = 'peakdiv'
             const txt = newP('PEAK')
@@ -241,8 +246,7 @@
             pd.appendChild(txt)
             const img = document.createElement('img')
             img.src = '/fire3D.webp'
-            img.height = 30
-            img.style.transform = 'translateY(-1px)'
+            img.height = 26
             img.style.marginLeft = '5px'
             pd.appendChild(img)
             ed.appendChild(pd)
@@ -275,6 +279,8 @@
         return p
     }
 
+var rankeddata = null
+
     async function loadUser(user) {
         const search = document.getElementById('search')
         search.value = user || ''
@@ -297,8 +303,107 @@
         const playerModel = document.getElementById('playerModel')
         playerModel.src = 'https://nmsr.nickac.dev/fullbody/' + user
         loadUserData(rankeddata)
+        loadUserEloGraph(rankeddata)
+    }
+    
+var allmatches = null
+var elocchanges = null
+
+    async function loadUserEloGraph(data, max = 30) {
+        const ign = data['nickname']
+        const uuid = data['uuid']
+        const condiv = document.getElementById('elograph')
+        const matchesRaw = await fetch('/api/matches/' + ign)
+        const matches = await matchesRaw.json()
+        allmatches = matches
+
+        const changes = []
+        let current = 0
+        const orderedMatches = Array.isArray(matches) ? [...matches].reverse() : []
+
+        for (const match of orderedMatches) {
+            const changeEntry = (match.changes || []).find(c => c.uuid === uuid)
+            if (changeEntry && typeof changeEntry.change === 'number') {
+                current += changeEntry.change
+                changes.push(current)
+            }
+        }
+
+        const finalElo = typeof data.eloRate === 'number' ? data.eloRate : 0
+        const actualElos = changes.map((value, index) => {
+            const total = changes[changes.length - 1]
+            return finalElo - (total - value)
+        })
+
+        elocchanges = actualElos
+        drawEloGraph(actualElos)
     }
 
+    function drawEloGraph(lst) {
+        const condiv = document.getElementById('elograph')
+        condiv.innerHTML = ''
+
+        const rect = condiv.getBoundingClientRect()
+        const width = rect.width
+        const height = rect.height
+        const padding = 20
+
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+        svg.setAttribute('width', width)
+        svg.setAttribute('height', height)
+        svg.setAttribute('viewBox', `0 0 ${width} ${height}`)
+        svg.style.width = '100%'
+        svg.style.height = '100%'
+        svg.style.display = 'block'
+        condiv.appendChild(svg)
+
+        if (lst.length === 0) {
+            return
+        }
+
+        const rawMin = Math.min(...lst)
+        const rawMax = Math.max(...lst)
+        const minValue = Math.max(0, rawMin - 150)
+        const maxValue = Math.min(3000, rawMax + 150)
+        const range = Math.max(maxValue - minValue, 1)
+        const effectiveHeight = height - padding * 2
+        const yForValue = value => height - padding - ((value - minValue) / range) * effectiveHeight
+        const stepX = width / Math.max(lst.length - 1, 1)
+
+        const points = lst.map((value, index) => {
+            const x = index * stepX
+            const y = yForValue(Math.max(0, Math.min(3000, value)))
+            return { x, y, value }
+        })
+
+        for (let i = 1; i < points.length; i++) {
+            const prev = points[i - 1]
+            const current = points[i]
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+            line.setAttribute('x1', prev.x.toFixed(2))
+            line.setAttribute('y1', prev.y.toFixed(2))
+            line.setAttribute('x2', current.x.toFixed(2))
+            line.setAttribute('y2', current.y.toFixed(2))
+            line.setAttribute('stroke', elotocolor(current.value))
+            line.setAttribute('stroke-width', 2)
+            line.setAttribute('stroke-linecap', 'round')
+            svg.appendChild(line)
+        }
+    }
+    function elotocolor(elo) {
+        const rank = elotorank(elo)
+        if (rank === 'Netherite') {
+            return '#d066ff'
+        } else if (rank.includes('Diamond')) {
+            return '#29c9c2'
+        } else if (rank.includes('Emerald')) {
+            return '#21a83b'
+        } else if (rank.includes('Gold')) {
+            return '#d2a20a'
+        } else if (rank.includes('Iron')) {
+            return '#e2e2e2'
+        } else { return '#aaaaaa'}
+    }
     function elotorank(elo) {
         if (elo >= 2000) {
             return 'Netherite'
