@@ -302,94 +302,83 @@ var rankeddata = null
 
         const playerModel = document.getElementById('playerModel')
         playerModel.src = 'https://nmsr.nickac.dev/fullbody/' + user
+        const ign = rankeddata['nickname']
+
+        if (allmatches == null) {
+            const matchesRaw = await fetch('/api/matches/' + ign)
+            const matches = await matchesRaw.json()
+            allmatches = matches
+        }
+
         loadUserData(rankeddata)
         loadUserEloGraph(rankeddata)
     }
     
 var allmatches = null
-var elocchanges = null
 
     async function loadUserEloGraph(data, max = 30) {
         const ign = data['nickname']
         const uuid = data['uuid']
         const condiv = document.getElementById('elograph')
-        const matchesRaw = await fetch('/api/matches/' + ign)
-        const matches = await matchesRaw.json()
-        allmatches = matches
 
-        const changes = []
-        let current = 0
-        const orderedMatches = Array.isArray(matches) ? [...matches].reverse() : []
+        if (allmatches == null) {
+            const matchesRaw = await fetch('/api/matches/' + ign)
+            const matches = await matchesRaw.json()
+            allmatches = matches
+        }
 
-        for (const match of orderedMatches) {
-            const changeEntry = (match.changes || []).find(c => c.uuid === uuid)
-            if (changeEntry && typeof changeEntry.change === 'number') {
-                current += changeEntry.change
-                changes.push(current)
+        const elo = []
+        allmatches.forEach(match => {
+            for (const change of match['changes']) {
+                if (change.uuid == uuid) {
+                    if (change['eloRate'] != null) {
+                        elo.push(change['eloRate'])
+                    }
+                }
             }
-        }
+        })
+        elo.reverse()
+        
+        const size = condiv.getBoundingClientRect()
+        const width = size.width
+        const height = size.height
 
-        const finalElo = typeof data.eloRate === 'number' ? data.eloRate : 0
-        const actualElos = changes.map((value, index) => {
-            const total = changes[changes.length - 1]
-            return finalElo - (total - value)
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+        svg.id = 'elosvg'
+        svg.setAttribute("width", width)
+        svg.setAttribute("height", height)
+        const eloScale = height / 3000 // pixels per Elo
+
+        // svg.setAttribute('viewBox', `0, -${mean * eloScale}, ${width}, ${height}`)
+        
+        let pathData = ""
+
+        elo.forEach((value, i) => {
+            const x = (i / (elo.length - 1)) * width
+            const y = height - (value * eloScale)
+
+            if (i === 0) {
+                pathData += `M ${x} ${y}`
+            } else {
+                pathData += ` L ${x} ${y}`
+            }
         })
 
-        elocchanges = actualElos
-        drawEloGraph(actualElos)
-    }
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path")
+        path.setAttribute("d", pathData)
+        path.setAttribute("fill", "none")
+        path.setAttribute("stroke", "black")
+        path.setAttribute("stroke-width", "2")
 
-    function drawEloGraph(lst) {
-        const condiv = document.getElementById('elograph')
-        condiv.innerHTML = ''
-
-        const rect = condiv.getBoundingClientRect()
-        const width = rect.width
-        const height = rect.height
-        const padding = 20
-
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-        svg.setAttribute('width', width)
-        svg.setAttribute('height', height)
-        svg.setAttribute('viewBox', `0 0 ${width} ${height}`)
-        svg.style.width = '100%'
-        svg.style.height = '100%'
-        svg.style.display = 'block'
+        svg.appendChild(path)
         condiv.appendChild(svg)
-
-        if (lst.length === 0) {
-            return
-        }
-
-        const rawMin = Math.min(...lst)
-        const rawMax = Math.max(...lst)
-        const minValue = Math.max(0, rawMin - 150)
-        const maxValue = Math.min(3000, rawMax + 150)
-        const range = Math.max(maxValue - minValue, 1)
-        const effectiveHeight = height - padding * 2
-        const yForValue = value => height - padding - ((value - minValue) / range) * effectiveHeight
-        const stepX = width / Math.max(lst.length - 1, 1)
-
-        const points = lst.map((value, index) => {
-            const x = index * stepX
-            const y = yForValue(Math.max(0, Math.min(3000, value)))
-            return { x, y, value }
-        })
-
-        for (let i = 1; i < points.length; i++) {
-            const prev = points[i - 1]
-            const current = points[i]
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
-            line.setAttribute('x1', prev.x.toFixed(2))
-            line.setAttribute('y1', prev.y.toFixed(2))
-            line.setAttribute('x2', current.x.toFixed(2))
-            line.setAttribute('y2', current.y.toFixed(2))
-            line.setAttribute('stroke', elotocolor(current.value))
-            line.setAttribute('stroke-width', 2)
-            line.setAttribute('stroke-linecap', 'round')
-            svg.appendChild(line)
-        }
     }
+
+function viewbox(a,b,c,d) {
+    const svg = document.getElementById('elosvg')
+    svg.setAttribute('viewBox', `${a} ${b} ${c} ${d}`)
+}
+
     function elotocolor(elo) {
         const rank = elotorank(elo)
         if (rank === 'Netherite') {
